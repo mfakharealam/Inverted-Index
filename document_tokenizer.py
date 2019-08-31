@@ -1,6 +1,5 @@
 import os
 import sys
-import nltk
 import re
 from nltk.tokenize import word_tokenize
 from nltk.stem import PorterStemmer
@@ -46,6 +45,7 @@ class TokenizeDocument:
             with open("termsid.txt", 'a', encoding="utf-8", errors='ignore') as term_file:
                 for word in tokenized_words_list:
                     stem_word = self.stemmer.stem(word).lower()
+                    stem_word = re.sub('[^a-zA-Z]+', '', stem_word)
                     if stem_word not in self.words_stop_list:
                         if stem_word not in self.words_vocabulary_list:
                             self.words_list.append([stem_word, self.term_id])
