@@ -77,7 +77,7 @@ class TokenizeDocument:
             # return term_dictionary
 
     @staticmethod
-    def write_doc_info(term_dict):
+    def write_inverted_index(term_dict):
         with open("term_index.txt", 'a', encoding='utf8', errors='ignore') as term_info_file:
             for key in term_dict:
                 term_info_file.write(str(key) + "\t" + str(len(term_dict[key])))  # key is termID
@@ -100,7 +100,7 @@ class TokenizeDocument:
                 #     term_dictionary.clear()
                 #     index_pos = 1   # for new file
                 self.doc_id += 1
-        self.write_doc_info(self.term_dictionary)   # write at the end combined
+        self.write_inverted_index(self.term_dictionary)   # write at the end combined
 
 
 if __name__ == "__main__":
