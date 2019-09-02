@@ -8,7 +8,7 @@ from nltk.corpus import stopwords
 from bs4 import BeautifulSoup
 
 
-class TokenizeDocument:
+class MakeInvertedIndex:
     corpus_path = sys.argv[1]   # argv[0] is the file itself
     stemmer = PorterStemmer()
     corpus_dir = os.path.join(os.getcwd(), corpus_path)
@@ -104,5 +104,5 @@ class TokenizeDocument:
 
 
 if __name__ == "__main__":
-    tokenize_document = TokenizeDocument()
-    tokenize_document.construct_index()
+    make_inverted_index = MakeInvertedIndex()
+    make_inverted_index.construct_index()
