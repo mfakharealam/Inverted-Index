@@ -1,6 +1,7 @@
 import os
 import sys
 import re
+from collections import defaultdict
 from nltk.tokenize import word_tokenize
 from nltk.stem import PorterStemmer
 from nltk.corpus import stopwords
@@ -15,7 +16,8 @@ class TokenizeDocument:
     words_list = []
     doc_id = 1
     term_id = 1
-    words_vocabulary_list = set()  # all the unique words
+    term_dictionary = defaultdict(list)
+    words_vocabulary_list = set()  # only unique words
 
     def __init__(self):
         self.words_stop_list = self.make_stop_list("stoplist.txt")
@@ -30,7 +32,6 @@ class TokenizeDocument:
         return stop_list
 
     def file_parser(self, filename, pos):
-        term_dictionary = {}
         with open(os.path.join(self.corpus_dir, filename), encoding="utf-8", errors='ignore') as file:
             html_soup = BeautifulSoup(file, "html.parser")
         ignored_tags = html_soup.find_all(["script", "style"])
@@ -49,28 +50,40 @@ class TokenizeDocument:
                     stem_word = re.sub('[^a-zA-Z]+', '', stem_word)
                     if stem_word not in self.words_stop_list:
                         if stem_word not in self.words_vocabulary_list:
-                            term_dictionary[stem_word] = []
-                            term_dictionary[stem_word].append(pos)
+                            self.term_dictionary[self.term_id] = []
+                            self.term_dictionary[self.term_id].append((self.doc_id, pos))  # occurrences of term
                             self.words_list.append([stem_word, self.term_id])
                             self.words_vocabulary_list.add(stem_word)
                             term_file.write(str(self.term_id) + "\t" + stem_word + "\n")
                             self.term_id += 1
                         elif stem_word in self.words_vocabulary_list:
-                            if stem_word not in term_dictionary:
-                                term_dictionary[stem_word] = []
-                            term_dictionary[stem_word].append(pos)
+                            for tid in self.words_list:
+                                if tid[0] == stem_word:
+                                    term_id_for_stem_word = tid[1]
+                                    break
+                            self.term_dictionary[term_id_for_stem_word].append((self.doc_id, pos))
+                            print(stem_word)
+                            print(self.term_dictionary[term_id_for_stem_word])
+                            # if self.term_id not in self.term_dictionary:
+                            #     self.term_dictionary[self.term_id] = []
+                            # self.term_dictionary[self.term_id].append((self.doc_id, pos))
+                            # print(stem_word)
+                            # print(self.term_id)
+                            # print(self.term_dictionary.get(self.term_id))
                         pos += 1
+            # print(term_dictionary)
+            exit()
             term_file.close()
-            return term_dictionary
+            # return term_dictionary
 
-    def write_doc_info(self, doc_id, term_dict):
-        with open("term_info.txt", 'a', encoding='utf8', errors='ignore') as term_info_file:
-            for word in self.words_list:
-                if term_dict.get(word[0]):
-                    term_info_file.write(str(doc_id) + "\t" + str(word[1]))
-                    for pos in term_dict.get(word[0]):
-                        term_info_file.write("\t" + str(pos))
-                    term_info_file.write("\n")
+    @staticmethod
+    def write_doc_info(term_dict):
+        with open("term_index.txt", 'a', encoding='utf8', errors='ignore') as term_info_file:
+            for key in term_dict:
+                term_info_file.write(str(key) + "\t" + str(len(term_dict[key])))  # key is termID
+                # if key == word[1]:  # since key is term ID
+                term_info_file.write("\t" + str(term_dict[key]))
+                term_info_file.write("\n")
         term_info_file.close()
 
     def construct_index(self):
@@ -79,11 +92,15 @@ class TokenizeDocument:
             if os.path.isfile(os.path.join(self.corpus_dir, filename)):
                 with open("docsid.txt", 'a') as doc_file:
                     doc_file.write(str(self.doc_id) + "\t" + filename + "\n")
-                term_dictionary = self.file_parser(filename, index_pos)
-                if term_dictionary is not None:
-                    self.write_doc_info(self.doc_id, term_dictionary)
-                    term_dictionary.clear()
+                # term_dictionary = self.file_parser(filename, index_pos)
+                self.file_parser(filename, index_pos)
+                index_pos = 1
+                # if term_dictionary is not None:
+                #     self.write_doc_info(term_dictionary)
+                #     term_dictionary.clear()
+                #     index_pos = 1   # for new file
                 self.doc_id += 1
+        self.write_doc_info(self.term_dictionary)   # write at the end combined
 
 
 if __name__ == "__main__":
