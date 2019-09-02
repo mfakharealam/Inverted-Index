@@ -1,7 +1,7 @@
 import os
 import sys
 import re
-from collections import defaultdict
+from collections import defaultdict, Counter
 from nltk.tokenize import word_tokenize
 from nltk.stem import PorterStemmer
 from nltk.corpus import stopwords
@@ -62,8 +62,8 @@ class TokenizeDocument:
                                     term_id_for_stem_word = tid[1]
                                     break
                             self.term_dictionary[term_id_for_stem_word].append((self.doc_id, pos))
-                            print(stem_word)
-                            print(self.term_dictionary[term_id_for_stem_word])
+                            # print(stem_word)
+                            # print(self.term_dictionary[term_id_for_stem_word])
                             # if self.term_id not in self.term_dictionary:
                             #     self.term_dictionary[self.term_id] = []
                             # self.term_dictionary[self.term_id].append((self.doc_id, pos))
@@ -71,17 +71,17 @@ class TokenizeDocument:
                             # print(self.term_id)
                             # print(self.term_dictionary.get(self.term_id))
                         pos += 1
-            # print(term_dictionary)
-            exit()
             term_file.close()
-            # return term_dictionary
 
     @staticmethod
     def write_inverted_index(term_dict):
         with open("term_index.txt", 'a', encoding='utf8', errors='ignore') as term_info_file:
             for key in term_dict:
+                # term ID and total occurrences
                 term_info_file.write(str(key) + "\t" + str(len(term_dict[key])))  # key is termID
-                # if key == word[1]:  # since key is term ID
+                # occurrences in different documents
+                term_info_file.write("\t" + str(len(Counter(doc_ids[0] for doc_ids in term_dict[key]))))
+                # doc_ids and positions in each doc
                 term_info_file.write("\t" + str(term_dict[key]))
                 term_info_file.write("\n")
         term_info_file.close()
