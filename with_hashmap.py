@@ -49,21 +49,20 @@ class MakeInvertedIndex:
                     stem_word = re.sub('[^a-zA-Z]+', '', stem_word)
                     if stem_word not in self.words_stop_list and len(stem_word) > 1:
                         if self.words_vocabulary_list.get(stem_word) is None:
-                            self.term_dictionary[self.term_id] = []
-                            self.term_dictionary[self.term_id].append((self.doc_id, pos))  # occurrences of term
+                            self.term_dictionary[self.term_id] = []     # maintaining inverted index
+                            self.term_dictionary[self.term_id].append((self.doc_id, pos))
                             self.words_list.append([stem_word, self.term_id])
                             self.words_vocabulary_list[stem_word] = self.term_id
-                            print(self.term_dictionary[self.term_id])
-                            exit()
                             term_file.write(str(self.term_id) + "\t" + stem_word + "\n")
                             self.term_id += 1
                         elif self.words_vocabulary_list[stem_word]:
-                            self.term_dictionary[self.words_vocabulary_list.get(stem_word)].append((self.doc_id, pos))
+                            already_existing_term_id = self.words_vocabulary_list.get(stem_word)
+                            self.term_dictionary[already_existing_term_id].append((self.doc_id, pos))
                         pos += 1
             term_file.close()
 
     @staticmethod
-    def write_inverted_index(term_dict):
+    def write_inverted_index_to_file(term_dict):
         with open("term_index.txt", 'a', encoding='utf8', errors='ignore') as term_info_file:
             for key in term_dict:
                 # term ID and total occurrences
@@ -71,7 +70,15 @@ class MakeInvertedIndex:
                 # occurrences in different documents
                 term_info_file.write("\t" + str(len(Counter(doc_ids[0] for doc_ids in term_dict[key]))))
                 # doc_ids and positions in each doc
-                term_info_file.write("\t" + str(term_dict[key]))
+                for i, doc_id_pos in enumerate(term_dict[key]):
+                    if i == 0:
+                        term_info_file.write("\t" + str(doc_id_pos[0]) + ", " + str(doc_id_pos[1]))
+                    else:
+                        encoded_doc_id = doc_id_pos[0] - term_dict[key][i-1][0]
+                        encoded_pos = doc_id_pos[1]
+                        if encoded_doc_id == 0:  # if same doc ids, then encode positional indices
+                            encoded_pos -= term_dict[key][i-1][1]
+                        term_info_file.write("\t" + str(encoded_doc_id) + ", " + str(encoded_pos))
                 term_info_file.write("\n")
         term_info_file.close()
 
@@ -81,15 +88,10 @@ class MakeInvertedIndex:
             if os.path.isfile(os.path.join(self.corpus_dir, filename)):
                 with open("docsid.txt", 'a') as doc_file:
                     doc_file.write(str(self.doc_id) + "\t" + filename + "\n")
-                # term_dictionary = self.file_parser(filename, index_pos)
                 self.file_parser(filename, index_pos)
                 index_pos = 1
-                # if term_dictionary is not None:
-                #     self.write_doc_info(term_dictionary)
-                #     term_dictionary.clear()
-                #     index_pos = 1   # for new file
                 self.doc_id += 1
-        self.write_inverted_index(self.term_dictionary)   # write at the end combined
+        self.write_inverted_index_to_file(self.term_dictionary)   # write at the end combined
 
 
 if __name__ == "__main__":
