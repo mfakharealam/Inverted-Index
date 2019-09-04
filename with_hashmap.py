@@ -4,7 +4,6 @@ import re
 from collections import defaultdict, Counter
 from nltk.tokenize import word_tokenize
 from nltk.stem import PorterStemmer
-from nltk.corpus import stopwords
 from bs4 import BeautifulSoup
 
 
@@ -17,7 +16,7 @@ class MakeInvertedIndex:
     doc_id = 1
     term_id = 1
     term_dictionary = defaultdict(list)
-    words_vocabulary_list = set()  # only unique words
+    words_vocabulary_list = {}  # only unique words
 
     def __init__(self):
         self.words_stop_list = self.make_stop_list("stoplist.txt")
@@ -48,28 +47,18 @@ class MakeInvertedIndex:
                 for word in tokenized_words_list:
                     stem_word = self.stemmer.stem(word).lower()
                     stem_word = re.sub('[^a-zA-Z]+', '', stem_word)
-                    if stem_word not in self.words_stop_list:
-                        if stem_word not in self.words_vocabulary_list:
+                    if stem_word not in self.words_stop_list and len(stem_word) > 1:
+                        if self.words_vocabulary_list.get(stem_word) is None:
                             self.term_dictionary[self.term_id] = []
                             self.term_dictionary[self.term_id].append((self.doc_id, pos))  # occurrences of term
                             self.words_list.append([stem_word, self.term_id])
-                            self.words_vocabulary_list.add(stem_word)
+                            self.words_vocabulary_list[stem_word] = self.term_id
+                            print(self.term_dictionary[self.term_id])
+                            exit()
                             term_file.write(str(self.term_id) + "\t" + stem_word + "\n")
                             self.term_id += 1
-                        elif stem_word in self.words_vocabulary_list:
-                            for tid in self.words_list:
-                                if tid[0] == stem_word:
-                                    term_id_for_stem_word = tid[1]
-                                    break
-                            self.term_dictionary[term_id_for_stem_word].append((self.doc_id, pos))
-                            # print(stem_word)
-                            # print(self.term_dictionary[term_id_for_stem_word])
-                            # if self.term_id not in self.term_dictionary:
-                            #     self.term_dictionary[self.term_id] = []
-                            # self.term_dictionary[self.term_id].append((self.doc_id, pos))
-                            # print(stem_word)
-                            # print(self.term_id)
-                            # print(self.term_dictionary.get(self.term_id))
+                        elif self.words_vocabulary_list[stem_word]:
+                            self.term_dictionary[self.words_vocabulary_list.get(stem_word)].append((self.doc_id, pos))
                         pos += 1
             term_file.close()
 
