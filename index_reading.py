@@ -13,10 +13,11 @@ def get_term_details(term):
         stem_word = re.sub('[^a-zA-Z]+', '', stem_word)     # clear punctuation
         with open("termsid.txt", "r", encoding="utf-8") as terms_id_file, open("term_index.txt", "r", encoding="utf-8") as term_index_file:
             term_id_doc = terms_id_file.read().split()
-            for i in range(0, len(term_id_doc)):
+            for i in range(1, len(term_id_doc)):
                 if term_id_doc[i] == stem_word:
                     term_id = term_id_doc[i - 1]    # since it is matching the term, id is at index - 1
                     break
+                i += 2  # since term name is at 2nd pos each time
             if term_id != 0:
                 while True:
                     each_line = term_index_file.readline().split()
@@ -33,6 +34,8 @@ def get_term_details(term):
                 print("Term frequency in corpus:", total_corpus_occurrences)
             else:
                 print("Term not found!")
+        terms_id_file.close()
+        term_index_file.close()
 
 
 if __name__ == '__main__':
