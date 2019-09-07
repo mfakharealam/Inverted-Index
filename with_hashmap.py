@@ -42,11 +42,11 @@ class MakeInvertedIndex:
         if html_soup.find("body"):
             file_content += html_soup.find("body").text
         if file_content:
+            file_content = re.sub('[^a-zA-Z]+', ' ', file_content)
             tokenized_words_list = word_tokenize(file_content)
             with open("termsid.txt", 'a', encoding="utf-8", errors='ignore') as term_file:
                 for word in tokenized_words_list:
                     stem_word = self.stemmer.stem(word).lower()
-                    stem_word = re.sub('[^a-zA-Z]+', '', stem_word)
                     if stem_word not in self.words_stop_list and len(stem_word) > 1:
                         if self.words_vocabulary_list.get(stem_word) is None:
                             self.term_dictionary[self.term_id] = []     # maintaining inverted index
