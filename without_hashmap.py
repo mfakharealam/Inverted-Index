@@ -43,10 +43,10 @@ class MakeInvertedIndex:
         if html_soup.find("body"):
             file_content += html_soup.find("body").text
         if file_content:
+            file_content = re.sub('[^a-zA-Z]+', ' ', file_content)
             tokenized_words_list = word_tokenize(file_content)
             for word in tokenized_words_list:
                 stem_word = self.stemmer.stem(word).lower()
-                stem_word = re.sub('[^a-zA-Z]+', '', stem_word)
                 if stem_word not in self.words_stop_list and len(stem_word) > 1:
                     if self.words_vocabulary_list.get(stem_word) is None:
                         self.words_vocabulary_list[stem_word] = self.term_id
@@ -69,7 +69,20 @@ class MakeInvertedIndex:
                 term_freq_corpus = Counter(term_ids[0] for term_ids in sorted_list)[curr_term_id]
                 term_doc_freq = len(Counter(doc_ids[0] for doc_ids in doc_id_pos[curr_term_id - 1]))
                 term_info_file.write(str(curr_term_id) + "\t" + str(term_freq_corpus) + "\t" +
-                                     str(term_doc_freq) + "\t" + str(doc_id_pos[curr_term_id - 1]) + "\n")
+                                     str(term_doc_freq))
+                # Delta Encoding
+                for k, each_doc in enumerate(doc_id_pos[curr_term_id - 1]):
+                    curr_doc_id = each_doc[0]
+                    curr_pos = each_doc[1]
+                    encoded_pos = curr_pos
+                    encoded_id = curr_doc_id
+                    if k != 0:
+                        encoded_id = curr_doc_id - prev_doc[0]
+                        if encoded_id == 0:     # same doc ids
+                            encoded_pos = curr_pos - prev_doc[1]
+                    term_info_file.write("\t" + str(encoded_id) + ", " + str(encoded_pos))
+                    prev_doc = each_doc
+                term_info_file.write("\n")
         term_info_file.close()
 
     def sort_by_term_id(self):

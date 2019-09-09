@@ -44,7 +44,7 @@ class MakeInvertedIndex:
         if file_content:
             file_content = re.sub('[^a-zA-Z]+', ' ', file_content)
             tokenized_words_list = word_tokenize(file_content)
-            with open("termsid.txt", 'a', encoding="utf-8", errors='ignore') as term_file:
+            with open("termids.txt", 'a', encoding="utf-8", errors='ignore') as term_file:
                 for word in tokenized_words_list:
                     stem_word = self.stemmer.stem(word).lower()
                     if stem_word not in self.words_stop_list and len(stem_word) > 1:
@@ -86,7 +86,7 @@ class MakeInvertedIndex:
         index_pos = 1  # position of term in doc
         for filename in os.listdir(self.corpus_dir):
             if os.path.isfile(os.path.join(self.corpus_dir, filename)):
-                with open("docsid.txt", 'a') as doc_file:
+                with open("docids.txt", 'a') as doc_file:
                     doc_file.write(str(self.doc_id) + "\t" + filename + "\n")
                 self.file_parser(filename, index_pos)
                 index_pos = 1
