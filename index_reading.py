@@ -12,7 +12,7 @@ def get_term_details(term):
     if term is not None:
         stemmer = PorterStemmer()
         stem_word = stemmer.stem(term).lower()
-        stem_word = re.sub('[^a-zA-Z]+', '', stem_word)     # clear punctuation
+        stem_word = re.sub('[^a-zA-Z]+', ' ', stem_word)     # clear punctuation
         with open("termsid.txt", "r", encoding="utf-8") as terms_id_file, open("term_index.txt", "r", encoding="utf-8") as term_index_file:
             term_id_doc = terms_id_file.read().split()
             for i in range(1, len(term_id_doc)):
