@@ -1,9 +1,8 @@
 import os
-import sys
 import math
 import re
 import linecache
-from collections import defaultdict, Counter
+from collections import defaultdict, Counter, OrderedDict
 from nltk.tokenize import word_tokenize
 from nltk.stem import PorterStemmer
 from bs4 import BeautifulSoup
@@ -138,6 +137,7 @@ def get_relevant_docs_query(query_terms_ids):
             this_term_docs = get_all_docs_of_term(term_id)
             term_docs_dict[term_id] = this_term_docs
             query_docs_list.extend(this_term_docs)
+    query_docs_list = list(dict.fromkeys(query_docs_list))      # removes duplicates
     return term_docs_dict, query_docs_list
 
 
@@ -192,17 +192,18 @@ def get_doc_terms_info(doc_id):
 
 def okapi_bm25(the_query):
     query_id = the_query[0]
+    rank_info_dict = {}
     query_itself = the_query[1]
     current_query_terms_list = word_tokenize(query_itself)
     current_query_terms_list = [stemmer.stem(term) for term in current_query_terms_list if term not in stopwords_list]
-    query_terms_ids_list = get_query_terms_ids(current_query_terms_list, term_ids_list)
-    term_docs_dict, query_docs_list = get_relevant_docs_query(query_terms_ids_list)
+    query_terms_ids_dict = get_query_terms_ids(current_query_terms_list, term_ids_list)
+    term_docs_dict, query_docs_list = get_relevant_docs_query(query_terms_ids_dict)
     query_docs_list = sorted(query_docs_list)
     total_docs_in_collection = len(doc_lens)    # D
     k1 = 1.2
     k2 = 500
     b = 0.75
-    query_docs_list = list(dict.fromkeys(query_docs_list))  # removes duplicates
+    # query_docs_list = list(dict.fromkeys(query_docs_list))  # removes duplicates
     for doc in query_docs_list:     # list has doc ids
         total_score = 0.0
         try:
@@ -230,9 +231,74 @@ def okapi_bm25(the_query):
             third_val = ((1 + k2) * tfq)/(k2 + tfq)
             score_of_query_i = term_idf * second_val * third_val
             total_score += score_of_query_i
-        with open('okapi_bm_25.txt', 'a') as okapi_bm_file:
-            okapi_bm_file.write(str(query_id) + '\t0\t' + doc_names_list[doc] + '\t' + str(doc) + '\t' +
-                                str(total_score) + ' run1' + '\n')
+        rank_info_dict[(query_id, doc)] = total_score
+    sorted_rank_list = sorted(rank_info_dict.items(), key=lambda kv: kv[1], reverse=True)
+    rank_info_dict = OrderedDict(sorted_rank_list)
+    pos = 1
+    with open('okapi_bm_25.txt', 'a') as okapi_bm_file:
+        for q_id in rank_info_dict.items():
+            okapi_bm_file.write(
+                str(q_id[0][0]) + "\t" + "0" + "\t" + doc_names_list[q_id[0][1]] + "\t" + str(q_id[0][1]) + "\t" +
+                str(pos) + "\t" + str(q_id[1]) + "\t" + "run1" + "\n")
+            pos += 1
+        okapi_bm_file.close()
+
+
+def get_term_corpus_info(query_ids):
+    term_info = {}
+    for q_id in query_ids:
+        the_line = linecache.getline("term_index.txt", q_id).split()  # gets the term info
+        if q_id == int(the_line[0]):
+            term_info[q_id] = int(the_line[1])
+    return term_info
+
+
+def dirichlet_smoothing(the_query):
+    query_id = the_query[0]
+    rank_info = {}
+    query_itself = the_query[1]
+    current_query_terms_list = word_tokenize(query_itself)
+    current_query_terms_list = [stemmer.stem(term) for term in current_query_terms_list if term not in stopwords_list]
+    query_terms_ids_dict = get_query_terms_ids(current_query_terms_list, term_ids_list)
+    collection_occurrences = get_term_corpus_info(query_terms_ids_dict.values())    # only passing ids
+    total_collection_words = sum(doc_lens.values())
+    term_docs_dict, query_docs_list = get_relevant_docs_query(query_terms_ids_dict)
+    query_docs_list = sorted(query_docs_list)
+    for doc in query_docs_list:
+        doc_terms_info_dict = get_doc_terms_info(doc)   # gets info (each term freq in this doc) regrading current doc
+        try:
+            curr_doc_len = doc_lens[doc]
+        except KeyError:
+            curr_doc_len = 0
+        dirichlet_factor = curr_doc_len/(curr_doc_len + MU)     # lambda = N/(N + mu)
+        total_query_probability = 1
+        for term in current_query_terms_list:
+            try:
+                term_id_from_corpus = term_ids_list[term]
+            except KeyError:
+                term_id_from_corpus = -1
+            try:
+                tfd = doc_terms_info_dict[term_id_from_corpus]
+            except KeyError:
+                tfd = 0
+            try:
+                tfc = collection_occurrences[term_id_from_corpus]
+            except KeyError:
+                tfc = 0
+            probability_doc = tfd/curr_doc_len
+            probability_corpus = tfc/total_collection_words
+            curr_term_probability = dirichlet_factor * probability_doc + (1 - dirichlet_factor) * probability_corpus
+            total_query_probability *= curr_term_probability
+        rank_info[(query_id, doc)] = total_query_probability
+    sorted_rank = sorted(rank_info.items(), key=lambda kv: kv[1], reverse=True)
+    rank_info = OrderedDict(sorted_rank)
+    pos = 1
+    with open('dirichlet_smoothing_model.txt', 'a') as dirichlet_file:
+        for q_id in rank_info.items():
+            dirichlet_file.write(str(q_id[0][0]) + "\t" + "0" + "\t" + doc_names_list[q_id[0][1]] + "\t" + str(q_id[0][1]) + "\t" +
+                                 str(pos) + "\t" + str(q_id[1]) + "\t" + "run1" + "\n")
+            pos += 1
+        dirichlet_file.close()
 
 
 stopwords_list = make_stop_list("stoplist.txt")
@@ -240,11 +306,11 @@ stopwords_list = make_stop_list("stoplist.txt")
 
 query_list = read_queries()
 avg_doc_len, doc_lens = read_docs_len_info()
+MU = avg_doc_len
 doc_names_list = get_doc_names()
 term_ids_list = read_term_ids()
 
 print("Ranking Queries...")
-# for query in query_list:
-#     okapi_bm25(query)
-print("Done with Okapi-BM25 Ranking!")
-
+for query in query_list:
+    okapi_bm25(query)
+    dirichlet_smoothing(query)
