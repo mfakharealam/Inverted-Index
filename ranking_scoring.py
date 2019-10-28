@@ -226,7 +226,7 @@ def okapi_bm25(the_query):
                 df = len(term_docs_dict[term_id_from_corpus])     # document freq of term
             except KeyError:
                 df = 0
-            term_idf = math.log((total_docs_in_collection + 0.5)/(df + 0.5))  # first in formula
+            term_idf = math.log10((total_docs_in_collection + 0.5)/(df + 0.5))  # first in formula
             second_val = ((1 + k1) * tfd)/(K + tfd)
             third_val = ((1 + k2) * tfq)/(k2 + tfq)
             score_of_query_i = term_idf * second_val * third_val
@@ -273,22 +273,23 @@ def dirichlet_smoothing(the_query):
         dirichlet_factor = curr_doc_len/(curr_doc_len + MU)     # lambda = N/(N + mu)
         total_query_probability = 1
         for term in current_query_terms_list:
-            try:
-                term_id_from_corpus = term_ids_list[term]
-            except KeyError:
-                term_id_from_corpus = -1
-            try:
-                tfd = doc_terms_info_dict[term_id_from_corpus]
-            except KeyError:
-                tfd = 0
-            try:
-                tfc = collection_occurrences[term_id_from_corpus]
-            except KeyError:
-                tfc = 0
-            probability_doc = tfd/curr_doc_len
-            probability_corpus = tfc/total_collection_words
-            curr_term_probability = dirichlet_factor * probability_doc + (1 - dirichlet_factor) * probability_corpus
-            total_query_probability *= curr_term_probability
+            if len(term) > 1:
+                try:
+                    term_id_from_corpus = term_ids_list[term]
+                except KeyError:
+                    term_id_from_corpus = -1
+                try:
+                    tfd = doc_terms_info_dict[term_id_from_corpus]
+                except KeyError:
+                    tfd = 0
+                try:
+                    tfc = collection_occurrences[term_id_from_corpus]
+                except KeyError:
+                    tfc = 0
+                probability_doc = tfd/curr_doc_len
+                probability_corpus = tfc/total_collection_words
+                curr_term_probability = dirichlet_factor * probability_doc + (1 - dirichlet_factor) * probability_corpus
+                total_query_probability *= curr_term_probability
         rank_info[(query_id, doc)] = total_query_probability
     sorted_rank = sorted(rank_info.items(), key=lambda kv: kv[1], reverse=True)
     rank_info = OrderedDict(sorted_rank)
@@ -302,7 +303,7 @@ def dirichlet_smoothing(the_query):
 
 
 stopwords_list = make_stop_list("stoplist.txt")
-# make_docs_len_info()
+make_docs_len_info()
 
 query_list = read_queries()
 avg_doc_len, doc_lens = read_docs_len_info()
