@@ -33,8 +33,23 @@ def read_relevance_judge_q_rel():
             line = graded_file.readline().split()
             if len(line) < 1:
                 break
-            graded_docs_dict[(int(line[0]), line[2])] = int(line[3])    # tuple (query id, grade)
+            graded_docs_dict[(int(line[0]), line[2])] = int(line[3])    # tuple (query id, doc name)
+            if query_id_grades.get(int(line[0])) is None:
+                query_id_grades[int(line[0])] = []
+            query_id_grades.get(int(line[0])).append(int(line[3]))
         graded_file.close()
+
+
+def find_total_relevant_docs_query(que):
+    no_of_docs = 0
+    query_id = int(que[0])
+    try:
+        for grade in query_id_grades[query_id]:
+            if grade > 0:
+                no_of_docs += 1
+    except KeyError:
+        no_of_docs = 0
+    return no_of_docs
 
 
 def p_at(query, i):
@@ -52,24 +67,66 @@ def p_at(query, i):
         j += 1
         if j == i + 1:
             break
-    print(R/i)
+    return R/i
+
+
+def avg_p_at(query, i):
+    j = 1
+    R = 0.0
+    q_id = int(query[0])
+    doc_names_ranked = query_rank_dict[q_id]
+    for d in doc_names_ranked:
+        try:
+            doc_grade = graded_docs_dict[(q_id, d)]
+        except KeyError:
+            doc_grade = 0   # irrelevant
+        if doc_grade > 0:
+            R += 1
+        j += 1
+        if j == i + 1:
+            break
+    return R/i
 
 
 query_rank_dict = OrderedDict()  # key: query_id ; value: doc_name
-# read_ranking_file('okapi_bm_25.txt')
+read_ranking_file('okapi_bm_25.txt')
 query_list = read_queries()
+query_id_grades = {}
 graded_docs_dict = {}
 read_relevance_judge_q_rel()
+# for q in query_list:
+#     print("Query ID: " + q[0])
+#     p_at(q, 5)
+#     p_at(q, 10)
+#     p_at(q, 20)
+#     p_at(q, 30)
+# query_rank_dict.clear()
+# read_ranking_file('dirichlet_smoothing_model.txt')
+# for q in query_list:
+#     print("Query ID: " + q[0])
+#     p_at(q, 5)
+#     p_at(q, 10)
+#     p_at(q, 20)
+#     p_at(q, 30)
+
+cumulative_p_at = 0
+avg_precision = 0
 for q in query_list:
-    print("Query ID: " + q[0])
-    p_at(q, 5)
-    p_at(q, 10)
-    p_at(q, 20)
-    p_at(q, 30)
+    for i in range(1, 11):  # top 10 docs
+        cumulative_p_at += p_at(q, i)
+    total_rel_docs = find_total_relevant_docs_query(q)
+    avg_precision += cumulative_p_at/total_rel_docs
+
+print(avg_precision/len(query_list))
+
+query_rank_dict.clear()
 read_ranking_file('dirichlet_smoothing_model.txt')
+cumulative_p_at = 0
+avg_precision = 0
 for q in query_list:
-    print("Query ID: " + q[0])
-    p_at(q, 5)
-    p_at(q, 10)
-    p_at(q, 20)
-    p_at(q, 30)
+    for i in range(1, 11):  # top 10 docs
+        cumulative_p_at += p_at(q, i)
+    total_rel_docs = find_total_relevant_docs_query(q)
+    avg_precision += cumulative_p_at/total_rel_docs
+
+print(avg_precision/len(query_list))
