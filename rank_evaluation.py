@@ -94,39 +94,46 @@ query_list = read_queries()
 query_id_grades = {}
 graded_docs_dict = {}
 read_relevance_judge_q_rel()
-# for q in query_list:
-#     print("Query ID: " + q[0])
-#     p_at(q, 5)
-#     p_at(q, 10)
-#     p_at(q, 20)
-#     p_at(q, 30)
-# query_rank_dict.clear()
-# read_ranking_file('dirichlet_smoothing_model.txt')
-# for q in query_list:
-#     print("Query ID: " + q[0])
-#     p_at(q, 5)
-#     p_at(q, 10)
-#     p_at(q, 20)
-#     p_at(q, 30)
+print("Different Precisions using Okapi BM-25: ")
+for q in query_list:
+    print("Query ID: " + q[0])
+    print(p_at(q, 5))
+    print(p_at(q, 10))
+    print(p_at(q, 20))
+    print(p_at(q, 30))
+query_rank_dict.clear()
+read_ranking_file('dirichlet_smoothing_model.txt')
+print("Different Precisions using Dirichlet Smoothing Model: ")
+for q in query_list:
+    print("Query ID: " + q[0])
+    print(p_at(q, 5))
+    print(p_at(q, 10))
+    print(p_at(q, 20))
+    print(p_at(q, 30))
 
+query_rank_dict.clear()
+read_ranking_file('okapi_bm_25.txt')
 cumulative_p_at = 0
 avg_precision = 0
+mAP_at_value = 100
+print("mAP using Okapi BM-25: ")
 for q in query_list:
-    for i in range(1, 11):  # top 10 docs
+    for i in range(1, mAP_at_value + 1):  # top x docs
         cumulative_p_at += p_at(q, i)
     total_rel_docs = find_total_relevant_docs_query(q)
     avg_precision += cumulative_p_at/total_rel_docs
 
-print(avg_precision/len(query_list))
+print(avg_precision/mAP_at_value)
 
 query_rank_dict.clear()
 read_ranking_file('dirichlet_smoothing_model.txt')
 cumulative_p_at = 0
 avg_precision = 0
 for q in query_list:
-    for i in range(1, 11):  # top 10 docs
+    for i in range(1, mAP_at_value + 1):  # top x docs
         cumulative_p_at += p_at(q, i)
     total_rel_docs = find_total_relevant_docs_query(q)
     avg_precision += cumulative_p_at/total_rel_docs
 
-print(avg_precision/len(query_list))
+print("mAP using Dirichlet Smoothing Model: ")
+print(avg_precision/mAP_at_value)

@@ -1,6 +1,7 @@
 import os
 import math
 import re
+import sys
 import linecache
 from collections import defaultdict, Counter, OrderedDict
 from nltk.tokenize import word_tokenize
@@ -33,69 +34,121 @@ def read_queries():
     return q_list
 
 
+def make_doc_len_info_file_using_ii():
+    docs_len_info_dict = {}  # kind of forward index with doc len
+    docs_terms_len_info = {}    # and count of each term in a doc against its the doc id
+    with open("term_index.txt", "r") as inverted_index_file:
+        while True:
+            doc_id = 0
+            line = inverted_index_file.readline().split()
+            if len(line) < 1:
+                break
+            d = 3
+            t_id = int(line[0])
+            # if t_id == 2500:
+            #     break
+            print(t_id)
+            while d < len(line):
+                doc_id += int(line[d].replace(",", ""))
+                # each doc len part
+                if docs_len_info_dict.get(doc_id) is None:
+                    docs_len_info_dict[doc_id] = 1     # if a doc came first time
+                else:   # already in dict
+                    temp = docs_len_info_dict.get(doc_id)    # get that doc's len and add 1
+                    temp += 1
+                    docs_len_info_dict[doc_id] = temp
+                # each term len in doc part:
+                if docs_terms_len_info.get(doc_id) is None:
+                    docs_terms_len_info[doc_id] = []
+                    docs_terms_len_info[doc_id].append((t_id, 1))
+                else:   # get the tuple and add count
+                    tuple_list = docs_terms_len_info[doc_id]
+                    found = 0
+                    for each_tuple in tuple_list:
+                        if each_tuple[0] == t_id:
+                            curr_tuple = each_tuple
+                            tuple_list.remove(curr_tuple)
+                            term_count = curr_tuple[1]
+                            term_count += 1
+                            docs_terms_len_info[doc_id].append((t_id, term_count))
+                            found = 1
+                            break
+                    if found == 0:  # current term is not yet in tuples' list
+                        docs_terms_len_info[doc_id].append((t_id, 1))
+                d += 2
+    inverted_index_file.close()
+    sorted_dict = sorted(docs_len_info_dict.items(), key=lambda kv: kv[0])
+    docs_len_info_dict = OrderedDict(sorted_dict)
+    with open("terms_info_in_each_doc_man.txt", 'a', encoding="utf-8", errors='ignore') as doc_info_file_man:
+        for d_id, d_len in docs_len_info_dict.items():
+            doc_info_file_man.write(str(d_id) + "\t" + str(d_len) + "\t")
+            t_list = docs_terms_len_info[d_id]
+            for each in t_list:
+                doc_info_file_man.write(str(each[0]) + ": " + str(each[1]) + ", ")
+            doc_info_file_man.write("\n")
+
+
 # for docs length, makes a file with each doc len info.
-def make_docs_len_info():
-    doc_no = 1
-    term_id = 1
-    doc_term_dict = {}
-    print("Making a file for each document's terms information...")
-    for filename in os.listdir(CORPUS_DIR):
-        if os.path.isfile(os.path.join(CORPUS_DIR, filename)):
-            with open(os.path.join(CORPUS_DIR, filename), encoding="utf-8", errors='ignore') as file:
-                html_soup = BeautifulSoup(file, "html.parser")
-                ignored_tags = html_soup.find_all(["script", "style"])
-                for tags in ignored_tags:
-                    tags.decompose()  # remove from the tree
-                file_content = ''
-                if html_soup.find("head"):
-                    file_content = html_soup.find("head").text
-                if html_soup.find("body"):
-                    file_content += html_soup.find("body").text
-                if file_content:
-                    file_content = re.sub('[^a-zA-Z]+', ' ', file_content)
-                    tokenized_words_list = word_tokenize(file_content)
-                    docs_info[doc_no] = []
-                    for word in tokenized_words_list:
-                        stem_word = stemmer.stem(word).lower()
-                        if stem_word not in stopwords_list and len(stem_word) > 1:
-                            if words_vocab.get(stem_word) is None:
-                                words_vocab[stem_word] = term_id
-                                doc_term_dict[(doc_no, term_id)] = 1   # count is 1 now
-                                docs_info[doc_no].append(term_id)
-                                term_id += 1
-                            elif words_vocab[stem_word]:
-                                already_existing_term_id = words_vocab.get(stem_word)
-                                if already_existing_term_id not in docs_info.get(doc_no):
-                                    docs_info[doc_no].append(already_existing_term_id)
-                                else:
-                                    try:
-                                        temp_count = doc_term_dict[(doc_no, already_existing_term_id)]
-                                    except KeyError:
-                                        temp_count = 0
-                                    doc_term_dict[(doc_no, already_existing_term_id)] = temp_count + 1
-                else:
-                    docs_info[doc_no] = []
-                    docs_info[doc_no].append(0)     # to avoid skipped lines in file, want to match doc no with line no in file
-        # print("Progress: " + str(100 * (doc_no/3465)) + "%")
-        doc_no += 1
-    file.close()
-    if docs_info is not None:
-        with open("terms_info_in_each_doc.txt", 'a', encoding="utf-8", errors='ignore') as doc_info_file:
-            for doc in docs_info:
-                doc_info_file.write(str(doc) + "\t" + str(len(docs_info[doc])) + "\t")
-                t_sum = 0
-                for t_id in docs_info[doc]:
-                    try:
-                        temp_count = doc_term_dict[(doc, t_id)]
-                    except KeyError:
-                        temp_count = 1
-                    doc_info_file.write(str(t_id) + ": " + str(temp_count) + ", ")
-                    t_sum += temp_count
-                doc_info_file.write("\n")
+# def make_docs_len_info():
+#     doc_no = 1
+#     term_id = 1
+#     doc_term_dict = {}
+#     print("Making a file for each document's terms information...")
+#     for filename in os.listdir(CORPUS_DIR):
+#         if os.path.isfile(os.path.join(CORPUS_DIR, filename)):
+#             with open(os.path.join(CORPUS_DIR, filename), encoding="utf-8", errors='ignore') as file:
+#                 html_soup = BeautifulSoup(file, "html.parser")
+#                 ignored_tags = html_soup.find_all(["script", "style"])
+#                 for tags in ignored_tags:
+#                     tags.decompose()  # remove from the tree
+#                 file_content = ''
+#                 if html_soup.find("head"):
+#                     file_content = html_soup.find("head").text
+#                 if html_soup.find("body"):
+#                     file_content += html_soup.find("body").text
+#                 if file_content:
+#                     file_content = re.sub('[^a-zA-Z]+', ' ', file_content)
+#                     tokenized_words_list = word_tokenize(file_content)
+#                     docs_info[doc_no] = []
+#                     for word in tokenized_words_list:
+#                         stem_word = stemmer.stem(word).lower()
+#                         if stem_word not in stopwords_list and len(stem_word) > 1:
+#                             if words_vocab.get(stem_word) is None:
+#                                 words_vocab[stem_word] = term_id
+#                                 doc_term_dict[(doc_no, term_id)] = 1   # count is 1 now
+#                                 docs_info[doc_no].append(term_id)
+#                                 term_id += 1
+#                             elif words_vocab[stem_word]:
+#                                 already_existing_term_id = words_vocab.get(stem_word)
+#                                 if already_existing_term_id not in docs_info.get(doc_no):
+#                                     docs_info[doc_no].append(already_existing_term_id)
+#                                 else:
+#                                     try:
+#                                         temp_count = doc_term_dict[(doc_no, already_existing_term_id)]
+#                                     except KeyError:
+#                                         temp_count = 0
+#                                     doc_term_dict[(doc_no, already_existing_term_id)] = temp_count + 1
+#                 else:
+#                     docs_info[doc_no] = []
+#                     docs_info[doc_no].append(0)     # to avoid skipped lines in file, want to match doc no with line no in file
+#         # print("Progress: " + str(100 * (doc_no/3465)) + "%")
+#         doc_no += 1
+#     file.close()
+#     if docs_info is not None:
+#         with open("terms_info_in_each_doc.txt", 'a', encoding="utf-8", errors='ignore') as doc_info_file:
+#             for doc in docs_info:
+#                 doc_info_file.write(str(doc) + "\t" + str(len(docs_info[doc])) + "\t")
+#                 t_sum = 0
+#                 for t_id in docs_info[doc]:
+#                     try:
+#                         temp_count = doc_term_dict[(doc, t_id)]
+#                     except KeyError:
+#                         temp_count = 1
+#                     doc_info_file.write(str(t_id) + ": " + str(temp_count) + ", ")
+#                     t_sum += temp_count
+#                 doc_info_file.write("\n")
 
-
-# returns dict of all corpus unique terms, with key as term and value being ID
-def read_term_ids():
+def read_term_ids(): # returns dict of all corpus unique terms, with key as term and value being ID
     t_ids = {}
     with open("termids.txt", "r") as term_id_file:
         line = term_id_file.readline().split()
@@ -158,7 +211,7 @@ def get_all_docs_of_term(term_id):
 def read_docs_len_info():
     docs_len_dict = {}
     len_sum = 0
-    with open("terms_info_in_each_doc.txt", "r") as docs_len_file:
+    with open("terms_info_in_each_doc_man.txt", "r") as docs_len_file:
         while True:
             line = docs_len_file.readline().split()
             if len(line) < 1:
@@ -174,13 +227,26 @@ def get_doc_terms_info(doc_id):
     doc_terms = {}
     i = 2   # for term id
     j = 3   # for freq of term
-    the_line = linecache.getline("terms_info_in_each_doc.txt", doc_id).split()
+    the_line = linecache.getline("terms_info_in_each_doc_man.txt", doc_id).split()
+    total_docs = len(doc_lens)
+    if len(the_line) < 1 and doc_id > total_docs or len(the_line) > 1:
+        try:
+            d_id_in_file = int(the_line[0])
+        except IndexError:  # means that line is not in the file
+            d_id_in_file = 0
+        temp_id = doc_id
+        if doc_id != d_id_in_file:
+            while True:
+                temp_id -= 1
+                the_line = linecache.getline("terms_info_in_each_doc_man.txt", temp_id).split()
+                try:
+                    d_id_in_file = int(the_line[0])
+                except IndexError:  # means that line is not in the file
+                    d_id_in_file = 0
+                if d_id_in_file == doc_id:
+                    break
     try:
-        d_id_in_file = int(the_line[0])
-    except IndexError:
-        return doc_terms
-    try:
-        limit = int(the_line[1]) * 2 + 2    # since there are tuples, plus 2 because of i
+        limit = int(len(the_line[2:])) + 1    # since there are tuples, plus 2 because of i
     except IndexError:
         limit = 0
     while j <= limit:
@@ -303,15 +369,27 @@ def dirichlet_smoothing(the_query):
 
 
 stopwords_list = make_stop_list("stoplist.txt")
-make_docs_len_info()
+# make_docs_len_info()
+# make_doc_len_info_file_using_ii()
 
 query_list = read_queries()
 avg_doc_len, doc_lens = read_docs_len_info()
 MU = avg_doc_len
 doc_names_list = get_doc_names()
 term_ids_list = read_term_ids()
-
-print("Ranking Queries...")
-for query in query_list:
-    okapi_bm25(query)
-    dirichlet_smoothing(query)
+# print(get_doc_terms_info(14))
+try:
+    if sys.argv[1] == "--score":
+        if sys.argv[2].lower() == "okapi-bm25":
+            print("Ranking Queries...")
+            for query in query_list:
+                okapi_bm25(query)
+        elif sys.argv[2].lower() == "dirichlet smoothing":
+            print("Ranking Queries...")
+            for query in query_list:
+                dirichlet_smoothing(query)
+        else:
+            print("Enter 'okapi-bm25 or dirichlet smoothing'!")
+except IndexError:
+    print("Type in proper format to run program!")
+    print("Format --> '--score okapi-bm25 or dirichlet smoothing'")
